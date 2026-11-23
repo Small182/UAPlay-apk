@@ -891,8 +891,7 @@ int catalog_load_page_sorted(const char *category, const char *query, int page,
     char key[256];
     tmdb_key(key,sizeof(key));
     if (!key[0]) {
-        snprintf(error,error_size,TR("TMDB: додайте /switch/uaplay/tmdb.key на SD-карту","TMDB: add /switch/uaplay/tmdb.key to the SD card"));
-        return 0;
+        snprintf(error,error_size,TR("Офлайн-каталог. У налаштуваннях можна додати ключ TMDB для оновлення списків.","Offline catalog. Add your TMDB key in Settings to enable live lists."));
     }
 
     const char *language=tmdb_language(ui_language());
@@ -950,7 +949,7 @@ int catalog_load_page_sorted(const char *category, const char *query, int page,
     /* The TMDB API defaults to page 1. Explicitly request subsequent pages. */
     size_t used=strlen(url);
     if (used+24<sizeof(url))snprintf(url+used,sizeof(url)-used,"&page=%d",page);
-    char *json = request(url, error, error_size);
+    char *json = key[0] ? request(url, error, error_size) : NULL;
     int offline_search=0;
     int offline_catalog=0;
     if (!json) {
