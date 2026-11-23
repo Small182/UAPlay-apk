@@ -21,4 +21,5 @@ public final class NativeCore {
     public static native void progress(int id,boolean series,String title,String original,String year,int season,int episode,double seconds);
     public static native double resume(int id,boolean series,String title,String original,String year);
     public static native String iptv(int country,int start,int size);
+    public static native String iptvCountries();
 }
