@@ -1021,7 +1021,9 @@ int catalog_load_page_sorted(const char *category, const char *query, int page,
         if (m.id && m.title[0] && strcmp(type, "person") &&
             (!offline_search || contains_title(m.title,query) ||
              contains_title(m.original,query)) &&
-            country_allowed(&m,p,end,offline_catalog?NULL:key))items[count++] = m;
+            (offline_catalog ?
+                json_has_ru(p,end,m.series?"origin_country":"production_countries")!=1 :
+                country_allowed(&m,p,end,key)))items[count++] = m;
         p = end;
     }
     free(json);
