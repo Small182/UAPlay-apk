@@ -515,6 +515,7 @@ public class MainActivity extends Activity {
         iptvCountry=country;iptvOffset=offset;playingIptv=false;
         LinearLayout l=content(IPTV);buttonRow(l,btn(s("← Головна","← Home"),()->browse("top")));
         title(l,"IPTV");
+        buttonRow(l,btn(s("Обрати країну / Усі канали","Choose country / All channels"),this::chooseIptvCountry));
         note(l,s("Канали з відкритих списків UAPlay","Channels from UAPlay's open playlists"));
         LinearLayout list=new LinearLayout(this);list.setOrientation(LinearLayout.VERTICAL);l.addView(list);
         busy(list);final int ticket=generation;
@@ -538,6 +539,21 @@ public class MainActivity extends Activity {
             }
             focusFirst();
         },ticket);
+    }
+    private void chooseIptvCountry(){
+        try{
+            JSONObject response=new JSONObject(NativeCore.iptvCountries());
+            JSONArray list=response.optJSONArray("items");
+            if(list==null)return;
+            String[] names=new String[list.length()+1];
+            names[0]=s("Усі країни","All countries");
+            for(int i=0;i<list.length();i++)names[i+1]=list.optJSONObject(i).optString("title");
+            new AlertDialog.Builder(this).setTitle(s("IPTV: країна","IPTV: country"))
+                .setItems(names,(dialog,index)->showIptv(index-1,0))
+                .setNegativeButton(s("Скасувати","Cancel"),null).show();
+        }catch(Exception ex){
+            Toast.makeText(this,s("Список країн недоступний","Countries unavailable"),Toast.LENGTH_LONG).show();
+        }
     }
     private void showFavorites(){
         LinearLayout l=content(LIBRARY);buttonRow(l,btn(s("← Головна","← Home"),()->browse("top")));
