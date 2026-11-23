@@ -369,6 +369,9 @@ public class MainActivity extends Activity {
         parent.addView(grid,new LinearLayout.LayoutParams(-1,-2));
     }
     private void details(JSONObject movie){
+        if(selectedMovie==null || idOf(selectedMovie)!=idOf(movie) || seriesOf(selectedMovie)!=seriesOf(movie)){
+            currentEpisode=-1;episodes=new JSONArray();
+        }
         selectedMovie=movie;LinearLayout l=content(DETAIL);
         buttonRow(l,btn(s("← Каталог","← Catalog"),()->browse(category)));
         title(l,titleOf(movie));
@@ -618,7 +621,14 @@ public class MainActivity extends Activity {
         space(l,14);note(l,s("Мова","Language"));
         buttonRow(l,btn("Українська",()->setLanguage("uk")));
         buttonRow(l,btn("English",()->setLanguage("en")));
-        space(l,14);note(l,"TMDB");
+        space(l,14);
+        buttonRow(l,btn(prefs.getBoolean("autoplay_episodes",true)?
+            s("Автоперехід до наступної серії: УВІМК.","Autoplay next episode: ON"):
+            s("Автоперехід до наступної серії: ВИМК.","Autoplay next episode: OFF"),()->{
+                prefs.edit().putBoolean("autoplay_episodes",!prefs.getBoolean("autoplay_episodes",true)).apply();
+                settings();
+            }));
+        note(l,"TMDB");
         buttonRow(l,btn(s("Ввести TMDB API-ключ","Set TMDB API key"),this::showKeyDialog));
         note(l,s("Ключ використовується для актуальних фільмів, серіалів та пошуку. Без нього доступний вбудований каталог.",
             "The key enables current movies, series, and search. Without it, bundled titles are shown."));
@@ -682,6 +692,10 @@ public class MainActivity extends Activity {
         VideoControls();
         setContentView(videoRoot);
         player.addListener(new Player.Listener(){
+            @Override public void onPlaybackStateChanged(int state){
+                if(state==Player.STATE_ENDED && currentEpisode>=0 &&
+                   prefs.getBoolean("autoplay_episodes",true))nextEpisode(1);
+            }
             @Override public void onPlayerError(PlaybackException err){
                 new AlertDialog.Builder(MainActivity.this)
                     .setTitle(s("Помилка відтворення","Playback error"))
@@ -710,7 +724,16 @@ public class MainActivity extends Activity {
         }
         player.setMediaItem(item.build());player.prepare();player.play();
         if(!playingIptv && selectedMovie!=null){
-            double sec=NativeCore.resume(idOf(selectedMovie),seriesOf(selectedMovie),titleOf(selectedMovie),originalOf(selectedMovie),yearOf(selectedMovie));
+            double sec;
+            if(currentEpisode>=0 && episodes!=null){
+                JSONObject ep=episodes.optJSONObject(currentEpisode);
+                sec=ep==null?0:NativeCore.resumeEpisode(idOf(selectedMovie),seriesOf(selectedMovie),
+                    titleOf(selectedMovie),originalOf(selectedMovie),yearOf(selectedMovie),
+                    ep.optInt("season"),ep.optInt("number"));
+            }else{
+                sec=NativeCore.resume(idOf(selectedMovie),seriesOf(selectedMovie),
+                    titleOf(selectedMovie),originalOf(selectedMovie),yearOf(selectedMovie));
+            }
             if(sec>10)player.seekTo((long)(sec*1000));
         }
         if(tv()||hardwareTv())playerView.requestFocus();
@@ -745,10 +768,21 @@ public class MainActivity extends Activity {
     }
     private void nextEpisode(int direction){
         if(episodes==null||currentEpisode<0)return;
-        int next=currentEpisode+direction;
-        if(next>=0&&next<episodes.length()){
-            storePosition();releasePlayer();playEpisode(next);
+        JSONObject here=episodes.optJSONObject(currentEpisode);if(here==null)return;
+        long now=(long)here.optInt("season")*10000L+here.optInt("number");
+        String voice=here.optString("voice");
+        long best=direction>0?Long.MAX_VALUE:Long.MIN_VALUE;
+        int chosen=-1;
+        for(int i=0;i<episodes.length();i++){
+            JSONObject ep=episodes.optJSONObject(i);if(ep==null)continue;
+            long position=(long)ep.optInt("season")*10000L+ep.optInt("number");
+            if(direction>0 ? position<=now : position>=now)continue;
+            boolean closer=direction>0 ? position<best : position>best;
+            if(closer || (position==best && voice.equals(ep.optString("voice")))){
+                best=position;chosen=i;
+            }
         }
+        if(chosen>=0){storePosition();releasePlayer();playEpisode(chosen);}
     }
     private void selectDub(){
         if(audioOptions==null||audioOptions.length()==0)return;
