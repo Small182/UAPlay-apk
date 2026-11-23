@@ -237,3 +237,17 @@ JNIEXPORT jstring JNICALL Java_com_small182_uaplay_android_NativeCore_iptv(JNIEn
  raw(&j,"]}");iptv_free(&cat);
  jstring out=finish(env,&j);pthread_mutex_unlock(&gate);return out;
 }
+
+JNIEXPORT jstring JNICALL Java_com_small182_uaplay_android_NativeCore_iptvCountries(JNIEnv *env,jclass cls){
+ (void)cls;
+ int count=0;const IptvCountry *countries=iptv_countries(&count);
+ Json j={0};raw(&j,"{\"items\":[");
+ for(int i=0;i<count;i++){
+   if(i)raw(&j,",");
+   fmt(&j,"{\"index\":%d,\"code\":",i);
+   quote(&j,countries[i].code);
+   raw(&j,",\"title\":");quote(&j,ui_text(countries[i].name));raw(&j,"}");
+ }
+ raw(&j,"]}");
+ return finish(env,&j);
+}
