@@ -134,6 +134,9 @@ public class MainActivity extends Activity {
         prefs=getSharedPreferences(PREFS,MODE_PRIVATE);
         getWindow().setStatusBarColor(BG);
         getWindow().setNavigationBarColor(BG);
+        java.net.CookieManager cookies=new java.net.CookieManager();
+        cookies.setCookiePolicy(java.net.CookiePolicy.ACCEPT_ALL);
+        java.net.CookieHandler.setDefault(cookies);
         copyOfflineCatalogs();
         NativeCore.init();
         downloads=OfflineManager.get(this);
