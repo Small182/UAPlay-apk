@@ -208,7 +208,7 @@ public final class OfflineManager {
             .setCache(cache).setUpstreamDataSourceFactory(http(item));
         MediaItem media=new MediaItem.Builder().setUri(item.url)
             .setMimeType(MimeTypes.APPLICATION_M3U8).build();
-        HlsDownloader task=new HlsDownloader.Factory(cf).create(media);
+        HlsDownloader task=new HlsDownloader(media,cf);
         downloader=task;
         task.download((total,downloaded,percent)->{
             if(cancelCurrent)task.cancel();
