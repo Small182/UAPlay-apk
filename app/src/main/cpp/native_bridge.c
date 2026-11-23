@@ -251,3 +251,12 @@ JNIEXPORT jstring JNICALL Java_com_small182_uaplay_android_NativeCore_iptvCountr
  raw(&j,"]}");
  return finish(env,&j);
 }
+
+JNIEXPORT jdouble JNICALL Java_com_small182_uaplay_android_NativeCore_resumeEpisode(JNIEnv *env,jclass cls,jint id,jboolean series,jstring title,jstring original,jstring year,jint season,jint episode){
+ (void)cls;pthread_mutex_lock(&gate);
+ Movie m=movie_in(env,id,series,title,original,year);
+ int previousSeason=0,previousEpisode=0;double seconds=0.0;
+ int has=library_last_episode(&m,&previousSeason,&previousEpisode,&seconds);
+ pthread_mutex_unlock(&gate);
+ return has && previousSeason==season && previousEpisode==episode ? seconds : 0.0;
+}
