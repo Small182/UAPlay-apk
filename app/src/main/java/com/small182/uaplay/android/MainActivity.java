@@ -95,7 +95,7 @@ public class MainActivity extends Activity {
     private final Handler handler=new Handler(Looper.getMainLooper());
     private final ExecutorService core=Executors.newSingleThreadExecutor();
     private final ExecutorService pictures=Executors.newFixedThreadPool(3);
-    private final Map<String,Bitmap> posterCache=new android.util.LruCache<String,Bitmap>(50){
+    private final android.util.LruCache<String,Bitmap> posterCache=new android.util.LruCache<String,Bitmap>(50){
         @Override protected int sizeOf(String key,Bitmap value){return 1;}
     };
     private int page=START, generation=0, currentPage=1, sortMode=0;
@@ -589,7 +589,7 @@ public class MainActivity extends Activity {
     }
 
     private void startPlayer(String url,String referer,String title){
-        releasePlayer();
+        if(player!=null)releasePlayer();
         page=PLAYER;++generation;
         playingUrl=url;playingReferer=referer==null?"":referer;playingName=title;
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
