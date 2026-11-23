@@ -101,7 +101,12 @@ public final class OfflineManager {
         cache=new SimpleCache(hls,new NoOpCacheEvictor(),new StandaloneDatabaseProvider(context));
         try{
             if(index.isFile()){
-                String json=new String(java.nio.file.Files.readAllBytes(index.toPath()),java.nio.charset.StandardCharsets.UTF_8);
+                java.io.ByteArrayOutputStream bytes=new java.io.ByteArrayOutputStream();
+                try(InputStream input=new java.io.FileInputStream(index)){
+                    byte[] buf=new byte[8192];int n;
+                    while((n=input.read(buf))!=-1)bytes.write(buf,0,n);
+                }
+                String json=bytes.toString("UTF-8");
                 JSONArray list=new JSONArray(json);
                 for(int i=0;i<list.length();i++){
                     JSONObject record=list.optJSONObject(i);if(record==null)continue;
