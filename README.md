@@ -1,35 +1,45 @@
-# UAPlay — Android / Android TV
+# UAPlay for Android / Android TV
 
-UAPlay Android preview, based on the UAPlay project for Nintendo Switch. This repository is **separate** from [UAPlay-nx](https://github.com/Small182/UAPlay-nx) and the PS5 port.
+**Native Android port in progress.** This is an actual port of the UAPlay-nx C catalog and provider engine—not the old Android VideoView demo.
 
-## Status — 0.1.1 alpha (test build)
+## Features already in the Android codebase
 
-The first-run screen lets you choose **Phone / tablet** (touch) or **Television** (remote control). The selection is saved and can be changed later in Settings. TV launcher support and D-pad navigation are present.
+- Original C code for TMDB catalog, ranking, title details and country filters
+- Original search and source-resolution parsers for UAFlix, UASerials, Eneyida, UAFilm, UAKino, Mikai, AnimeON and Movy
+- Original episode extraction and source audio/subtitle link retrieval
+- Original IPTV playlist parser, including country selection
+- Original local favorites and watch-progress library
+- Bundled UAPlay offline movie/series/top lists (works without TMDB API key)
+- Java Android TV/phone interface with first-run mode choice, settings, TV remote controls
+- Media3 ExoPlayer with HLS/progressive support (replaces the failed VideoView test player)
+- Supports both 64-bit and 32-bit ARM devices; requires Android 6.0+
 
-**Video test:** Open the built-in **Big Buck Bunny** sample, or supply your own direct HTTPS MP4/HLS link. The preview uses Android's built-in `VideoView`, not libmpv. Codec/stream support depends on the device.
+**Limitations / unfinished parts:** Android TV hardware playback and all external providers have not yet been tested on a real device. Native Switch SDL2 visuals have not been recreated pixel-for-pixel. Switch download queue, theme/wallpaper subsystem, SubDL downloader and self-updater are not yet fully ported. Some sites may block or modify their players. The previous small preview APK is obsolete.
 
-**Not yet implemented:** the Switch app's full catalog, providers, IPTV, downloads, custom SDL2 UI and libmpv backend. This is an installable Android TV *test application*, not the full UAPlay port.
+## Getting the APK
 
-## Install
+An automated debug-signed APK is produced by the [Build Android APK workflow](https://github.com/Small182/UAPlay-apk/actions/workflows/android-apk.yml). The main branch builds publish the APK to:
 
-Download the APK from [GitHub Actions](https://github.com/Small182/UAPlay-apk/actions) after a successful **Build Android APK** workflow. The workflow also attempts to publish an APK under `apk/UAPlay-Android-TV-test.apk` for convenient direct download. APK is debug-signed; no root needed.
+[Download UAPlay Android APK](https://raw.githubusercontent.com/Small182/UAPlay-apk/main/apk/UAPlay-Android-TV-test.apk)
 
-On Android TV, install using a file manager, USB transfer, or ADB after allowing installs from unknown apps. On first launch, select **Television**.
+For development builds, use the APK artifact attached to the workflow run on the \`feature/native-catalog-player\` branch. A successful build verifies compilation, not video playback on your device.
 
-## TV remote
+## How to use
 
-- D-pad: move focus
-- OK: select; in player, pause/resume
-- Back: previous screen; in player, close video
-- Left / right in player: ±10-second seek
-- Up / down: show player controls
+On first launch choose **Television** for Android TV / Google TV, or **Phone / tablet** for a touchscreen. In Settings you can change this later.
 
-## Build locally
+The catalog initially shows bundled UAPlay titles. For a **live TMDB catalog and searching**, open Settings > TMDB and enter your TMDB *API v3 key*. This is saved only in the app's private storage, not posted to GitHub.
 
-Requires JDK 17, Android SDK Platform 35, and Gradle 8.11.1 (Android Gradle Plugin 8.9.2). From repository root run `gradle :app:assembleDebug` or open the project in Android Studio.
+Choose a movie or series, then a provider, and for a series select a season and episode. Playback uses Media3, which supports HLS and native Android media track selection. The exact codecs available depend on the TV. For a provider with multiple offered audio links, use the Dub button in the player.
 
-## Development policy
+**Remote:** D-pad moves through the catalog, OK selects items / pauses or resumes playback, Left/Right during playback seeks ±10 seconds, Back closes the player or returns to the previous page.
 
-Keep the Android phone and Android TV builds in **one APK** with a first-run choice and editable Settings mode. Do not make changes to other UAPlay repositories through this repository. Publish GitHub Releases only when explicitly requested.
+## Building from sources
 
-Original Switch project: https://github.com/Small182/UAPlay-nx
+Requirements: Java 17, Gradle 8.11.1, Android Gradle Plugin 8.9.2, Android SDK 35, Android NDK 27.2, CMake 3.22.
+
+Run \`gradle :app:assembleDebug\` from the repository root. Source files are under \`app/src/main/cpp/core\` (ported C modules) and \`app/src/main/java/com/small182/uaplay/android\` (Android interface and HTTP transport).
+
+Optionally provide a TMDB v3 API key as the **\`TMDB_API_KEY\`** GitHub Actions secret to inject it during the build. Do not hardcode secrets into a public source repository.
+
+Original Switch project: [UAPlay-nx](https://github.com/Small182/UAPlay-nx). This repository is separate from Switch/PS5.
