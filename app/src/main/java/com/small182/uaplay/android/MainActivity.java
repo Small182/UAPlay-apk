@@ -210,7 +210,8 @@ public class MainActivity extends Activity {
         p.gravity=Gravity.CENTER_HORIZONTAL;parent.addView(progress,p);
         space(parent,18);
     }
-    private void async(java.util.concurrent.Callable<String> job,java.util.function.Consumer<JSONObject> result,int expected){
+    private interface ResultReceiver {void accept(JSONObject value);}
+    private void async(java.util.concurrent.Callable<String> job,ResultReceiver result,int expected){
         core.submit(()->{
             JSONObject value;
             try{value=new JSONObject(job.call());}
