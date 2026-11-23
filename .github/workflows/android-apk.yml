@@ -32,11 +32,12 @@ jobs:
           SDKMANAGER="$(command -v sdkmanager || find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
           "$SDKMANAGER" --install 'platforms;android-35' 'build-tools;35.0.0' 'ndk;27.2.12479018' 'cmake;3.22.1'
       - name: Set optional TMDB build key
-        if: env.UAPLAY_TMDB_KEY != ''
         env:
           UAPLAY_TMDB_KEY: ${{ secrets.TMDB_API_KEY }}
         run: |
-          printf '#define UAPLAY_TMDB_BUILD_KEY "%s"\n' "$UAPLAY_TMDB_KEY" > app/src/main/cpp/core/tmdb_build_key.h
+          if [ -n "$UAPLAY_TMDB_KEY" ]; then
+            printf '#define UAPLAY_TMDB_BUILD_KEY "%s"\n' "$UAPLAY_TMDB_KEY" > app/src/main/cpp/core/tmdb_build_key.h
+          fi
       - name: Assemble native Android APK
         shell: bash
         run: |
