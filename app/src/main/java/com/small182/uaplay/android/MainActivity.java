@@ -807,19 +807,32 @@ public class MainActivity extends Activity {
     }
     @Override public boolean dispatchKeyEvent(KeyEvent event){
         if(page==PLAYER && player!=null && event.getAction()==KeyEvent.ACTION_DOWN){
+            boolean menuFocused=getCurrentFocus() instanceof Button;
             switch(event.getKeyCode()){
                 case KeyEvent.KEYCODE_DPAD_LEFT:
-                case KeyEvent.KEYCODE_MEDIA_REWIND: seekVideo(-10000);return true;
                 case KeyEvent.KEYCODE_DPAD_RIGHT:
-                case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD: seekVideo(10000);return true;
-                case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
+                    if(menuFocused)return super.dispatchKeyEvent(event);
+                    seekVideo(event.getKeyCode()==KeyEvent.KEYCODE_DPAD_LEFT?-10000:10000);
+                    return true;
+                case KeyEvent.KEYCODE_MEDIA_REWIND:seekVideo(-10000);return true;
+                case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD:seekVideo(10000);return true;
                 case KeyEvent.KEYCODE_DPAD_CENTER:
                 case KeyEvent.KEYCODE_ENTER:
+                    if(menuFocused)return super.dispatchKeyEvent(event);
                     if(player.isPlaying())player.pause();else player.play();
                     playerView.showController();return true;
-                case KeyEvent.KEYCODE_BACK: leavePlayer();return true;
+                case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
+                    if(player.isPlaying())player.pause();else player.play();
+                    return true;
+                case KeyEvent.KEYCODE_BACK:leavePlayer();return true;
+                case KeyEvent.KEYCODE_DPAD_DOWN:
+                    if(!menuFocused && videoBar!=null && videoBar.getChildCount()>0){
+                        videoBar.getChildAt(0).requestFocus();return true;
+                    }
+                    return super.dispatchKeyEvent(event);
                 case KeyEvent.KEYCODE_DPAD_UP:
-                case KeyEvent.KEYCODE_DPAD_DOWN: playerView.showController();return true;
+                    if(menuFocused){playerView.requestFocus();playerView.showController();return true;}
+                    playerView.showController();return true;
             }
         }
         return super.dispatchKeyEvent(event);
