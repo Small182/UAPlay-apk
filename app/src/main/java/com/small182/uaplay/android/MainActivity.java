@@ -76,7 +76,7 @@ public class MainActivity extends Activity {
     private static final int GREY=Color.rgb(165,180,194);
     private static final String PREFS="uaplay_android";
     private static final String MODE="display_mode";
-    private static final int START=0,BROWSE=1,DETAIL=2,SOURCES=3,EPISODES=4,PLAYER=5,SETTINGS=6,IPTV=7,LIBRARY=8;
+    private static final int START=0,BROWSE=1,DETAIL=2,SOURCES=3,EPISODES=4,PLAYER=5,SETTINGS=6,IPTV=7,LIBRARY=8,DOWNLOADS=9;
     private static final String[][] CATEGORIES={
         {"top","Головна","Home"},
         {"films","Фільми","Movies"},
@@ -92,6 +92,8 @@ public class MainActivity extends Activity {
     private static final int[] PROVIDER_ID={0,1,2,3,4,5,6,7,9};
 
     private SharedPreferences prefs;
+    private OfflineManager downloads;
+    private LinearLayout downloadList;
     private final Handler handler=new Handler(Looper.getMainLooper());
     private final ExecutorService core=Executors.newSingleThreadExecutor();
     private final ExecutorService pictures=Executors.newFixedThreadPool(3);
@@ -134,6 +136,8 @@ public class MainActivity extends Activity {
         getWindow().setNavigationBarColor(BG);
         copyOfflineCatalogs();
         NativeCore.init();
+        downloads=OfflineManager.get(this);
+        downloads.setListener(()->runOnUiThread(()->{if(page==DOWNLOADS&&downloadList!=null)renderDownloads();}));
         NativeCore.language(!uk());
         orientation();
         if(!prefs.contains(MODE))firstRun();else browse("top");
@@ -254,6 +258,7 @@ public class MainActivity extends Activity {
         Button saved=btn(s("Обране","Saved"),this::showFavorites);
         LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-2,-2);p.rightMargin=px(8);row.addView(saved,p);
         Button iptv=btn("IPTV",()->showIptv(-1,0));row.addView(iptv,p);
+        Button download=btn(s("Завантаження","Downloads"),this::showDownloads);row.addView(download,p);
         Button settings=btn(s("Налаштування","Settings"),this::settings);row.addView(settings,p);
         scroll.addView(row);parent.addView(scroll);space(parent,15);
     }
@@ -555,6 +560,38 @@ public class MainActivity extends Activity {
             Toast.makeText(this,s("Список країн недоступний","Countries unavailable"),Toast.LENGTH_LONG).show();
         }
     }
+    private void showDownloads(){
+        LinearLayout l=content(DOWNLOADS);
+        buttonRow(l,btn(s("← Головна","← Home"),()->browse("top")));
+        title(l,s("Завантаження","Downloads"));
+        note(l,s("MP4 зберігається у файлах застосунку. HLS зберігається у кеші сегментів Media3.",
+            "MP4 files are kept in app storage; HLS segments are cached by Media3."));
+        downloadList=new LinearLayout(this);downloadList.setOrientation(LinearLayout.VERTICAL);
+        l.addView(downloadList);renderDownloads();focusFirst();
+    }
+    private void renderDownloads(){
+        if(page!=DOWNLOADS||downloadList==null)return;
+        downloadList.removeAllViews();
+        List<OfflineManager.Item> rows=downloads.all();
+        if(rows.isEmpty()){note(downloadList,s("Немає завантажень","No downloads"));return;}
+        for(OfflineManager.Item item:rows){
+            note(downloadList,item.description());
+            if("done".equals(item.state)){
+                buttonRow(downloadList,btn(s("▶ Переглянути","▶ Watch"),()->{
+                    selectedMovie=null;selectedSource=null;currentEpisode=-1;
+                    audioOptions=new JSONArray();subtitleOptions=new JSONArray();
+                    playingIptv=false;playingMovy=false;
+                    startPlayer(item.url,item.referer,item.title);
+                }));
+            }else if("downloading".equals(item.state)||"queued".equals(item.state)){
+                buttonRow(downloadList,btn(s("Ⅱ Пауза","Ⅱ Pause"),()->downloads.pause(item.id)));
+            }else{
+                buttonRow(downloadList,btn(s("↻ Продовжити","↻ Resume"),()->downloads.resume(item.id)));
+            }
+            buttonRow(downloadList,btn(s("× Видалити","× Delete"),()->downloads.remove(item.id)));
+            space(downloadList,10);
+        }
+    }
     private void showFavorites(){
         LinearLayout l=content(LIBRARY);buttonRow(l,btn(s("← Головна","← Home"),()->browse("top")));
         title(l,s("Моя бібліотека","My library"));
@@ -609,12 +646,21 @@ public class MainActivity extends Activity {
         page=PLAYER;++generation;
         playingUrl=url;playingReferer=referer==null?"":referer;playingName=title;
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        DefaultHttpDataSource.Factory http=new DefaultHttpDataSource.Factory()
-            .setAllowCrossProtocolRedirects(true).setUserAgent("Mozilla/5.0 (Android TV; UAPlay)");
         Map<String,String> headers=new HashMap<>();
-        if(!playingReferer.isEmpty())headers.put("Referer",playingReferer);
-        http.setDefaultRequestProperties(headers);
-        DefaultDataSource.Factory data=new DefaultDataSource.Factory(this,http);
+        String preferredReferer=playingReferer;
+        if(url.contains("zetvideo.net"))preferredReferer="https://zetvideo.net/";
+        else if(url.contains("ashdi.vip"))preferredReferer="https://ashdi.vip/";
+        else if(url.contains("hdvbua.pro"))preferredReferer="https://hdvbua.pro/";
+        if(!preferredReferer.isEmpty()){
+            headers.put("Referer",preferredReferer);
+            try{
+                Uri ref=Uri.parse(preferredReferer);
+                if(ref.getScheme()!=null&&ref.getHost()!=null)
+                    headers.put("Origin",ref.getScheme()+"://"+ref.getHost());
+            }catch(Exception ignored){}
+        }
+        DefaultDataSource.Factory data=new DefaultDataSource.Factory(this,
+            downloads.dataSourceFor(url,headers));
         player=new ExoPlayer.Builder(this)
             .setMediaSourceFactory(new DefaultMediaSourceFactory(data)).build();
         playerView=new PlayerView(this);playerView.setPlayer(player);
@@ -641,7 +687,8 @@ public class MainActivity extends Activity {
                     .show();
             }
         });
-        Uri uri=Uri.parse(url);
+        Uri uri=downloads.localUri(url);
+        if(uri==null)uri=Uri.parse(url);
         MediaItem.Builder item=new MediaItem.Builder().setUri(uri);
         if(url.toLowerCase(Locale.ROOT).contains(".m3u8"))item.setMimeType(MimeTypes.APPLICATION_M3U8);
         if(subtitleOptions!=null && subtitleOptions.length()>0) {
@@ -683,6 +730,8 @@ public class MainActivity extends Activity {
         addMini(videoBar,btn("+10s",()->seekVideo(10000)));
         if(audioOptions!=null&&audioOptions.length()>0)
             addMini(videoBar,btn(s("Озвучення","Dub"),this::selectDub));
+        if(!playingIptv&&!playingMovy && (playingUrl.startsWith("https://")||playingUrl.startsWith("http://")))
+            addMini(videoBar,btn("↓",this::downloadCurrent));
         addMini(videoBar,btn(s("Вийти","Exit"),this::leavePlayer));
     }
     private void addMini(LinearLayout row,Button b){
@@ -715,6 +764,11 @@ public class MainActivity extends Activity {
                     if(player!=null)player.seekTo(resume);
                 }
             }).show();
+    }
+    private void downloadCurrent(){
+        if(downloads==null||playingUrl.isEmpty())return;
+        downloads.add(playingUrl,playingReferer,selectedMovie==null?playingName:titleOf(selectedMovie));
+        Toast.makeText(this,s("Додано до завантажень","Added to downloads"),Toast.LENGTH_SHORT).show();
     }
     private void seekVideo(long delta){
         if(player==null)return;
@@ -774,7 +828,7 @@ public class MainActivity extends Activity {
         if(page==PLAYER)leavePlayer();
         else if(page==SOURCES&&selectedMovie!=null)details(selectedMovie);
         else if(page==EPISODES)showSources(0);
-        else if(page==DETAIL||page==SETTINGS||page==IPTV||page==LIBRARY)browse("top");
+        else if(page==DETAIL||page==SETTINGS||page==IPTV||page==LIBRARY||page==DOWNLOADS)browse("top");
         else super.onBackPressed();
     }
     @Override protected void onPause(){
